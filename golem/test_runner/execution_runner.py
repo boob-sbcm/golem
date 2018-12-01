@@ -327,6 +327,6 @@ class ExecutionRunner:
         elapsed_time = round(time.time() - start_time, 2)
         report_parser.generate_execution_report(self.execution.reportdir, elapsed_time)
 
-        #
+        # Use exit status code 1 if the test report contains failed test(s)
         if report_parser.report_contains_failed_tests(self.execution.reportdir):
             sys.exit(1)
