@@ -76,7 +76,11 @@ def _parse_execution_data(execution_directory=None, workspace=None,
     for test_case in test_cases:
         # each test case may have n >= 1 test sets
         # each test set is considered a different test
-        test_case_path = os.path.join(execution_directory, test_case)
+        if 'single_tests' in execution_directory:
+            test_case_path = execution_directory
+        else:
+            test_case_path = os.path.join(execution_directory, test_case)
+
         test_sets = os.walk(test_case_path).__next__()[1]
 
         for test_set in test_sets:
@@ -144,16 +148,16 @@ def _parse_execution_data(execution_directory=None, workspace=None,
 def get_execution_data(execution_directory=None, workspace=None,
                        project=None, suite=None, execution=None):
     """Retrieve the data of all the tests of a suite execution.
-    
+
     From the execution_report.json if it exists, otherwise it parses
     the tests one by one.
-    
+
     The `execution_report.json` should be generated when the suite
     execution ends.
     """
     has_finished = False
     if execution_directory:
-        report_path = os.path.join(execution_directory, 'execution_report.json')
+        report_path = _generate_execution_report_path(execution_directory)
     else:
         report_path = os.path.join(workspace, 'projects', project,
                                    'reports', suite, execution,
@@ -258,13 +262,17 @@ def is_execution_finished(path, sets):
     return is_finished
 
 
+def _generate_execution_report_path(execution_directory):
+    return os.path.join(execution_directory, 'execution_report.json')
+
+
 def generate_execution_report(execution_directory, elapsed_time):
     """Generate a json report of the entire suite execution so
     it is not required to parse the entire execution test by test
     each time it is requested by the reports module."""
     data = _parse_execution_data(execution_directory=execution_directory)
     data['net_elapsed_time'] = elapsed_time
-    report_path = os.path.join(execution_directory, 'execution_report.json')
+    report_path = _generate_execution_report_path(execution_directory)
     with open(report_path, 'w', encoding='utf-8') as json_file:
         json.dump(data, json_file, indent=4)
 
@@ -284,3 +292,15 @@ def return_html_test_steps(test_case_data, file_name):
         else:
             report_html += """<li>{}</li>""".format(step['message'])
     return report_html
+
+
+def report_contains_failed_tests(execution_directory):
+    """Determine if an execution report contains failed tests."""
+    report_path = _generate_execution_report_path(execution_directory)
+    with open(report_path, 'r', encoding='utf-8') as report_file:
+        execution_report_content = json.load(report_file)
+        has_errors = execution_report_content.get('totals_by_result', {}).get('code error', None)
+        if has_errors:
+            return True
+        else:
+            return False
